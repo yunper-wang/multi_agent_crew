@@ -1,0 +1,26 @@
+research_task:
+  description: >
+    围绕 {topic} 做一轮调研。首先使用文件读取工具打开本地知识文件
+    knowledge/user_preference.txt,了解用户的偏好与关注点;然后结合当前年份
+    {current_year},整理出最相关、最有价值的信息。
+  expected_output: >
+    一份中文要点清单,包含 5 条关于 {topic} 的核心信息,
+    并标注每条是如何呼应用户偏好的。
+  agent: researcher
+
+writing_task:
+  description: >
+    基于上一步的调研要点,把每一条扩写成一个完整的小节,组织成一篇
+    结构清晰的中文报告。报告需要有标题、引言和分节论述。
+  expected_output: >
+    一篇完整的中文 markdown 报告(不含 '```' 代码块标记),
+    每个要点对应一个小节,论述充分。
+  agent: writer
+
+review_task:
+  description: >
+    审校上一步产出的报告:检查事实是否准确、结构是否完整、语言是否流畅,
+    修正发现的问题,产出可直接交付的最终稿。
+  expected_output: >
+    审校后的最终中文报告(markdown 格式,不含 '```'),并附一句简要的审校说明。
+  agent: reviewer

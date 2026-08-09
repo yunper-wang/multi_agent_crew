@@ -1,0 +1,4 @@
+.devswarm-temp/
+.venv/
+__pycache__/
+*.pyc
