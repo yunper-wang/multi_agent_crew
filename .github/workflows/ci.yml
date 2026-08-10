@@ -37,18 +37,21 @@ jobs:
           from multi_agent_crew.flow import CodingFlow
           from multi_agent_crew.output_models import ImplementationPlan
           from multi_agent_crew.guardrails import code_solution_guardrail, json_output_guardrail
-          from multi_agent_crew.tools.custom_tool import PythonSyntaxCheckTool
+          from multi_agent_crew.tools import (
+              CodeSearchTool, ListDirTool, PythonRunTool,
+              PythonSyntaxCheckTool, PytestRunTool, ShellCommandTool,
+          )
           print("[smoke] imports OK")
 
-          # 离线构建 crew(不 kickoff、不联网)
+          # 离线构建 crew(不 kickoff、不联网):4 个 Agent / 4 个 Task
           crew = MultiAgentCrew().crew()
-          assert len(crew.agents) == 3 and len(crew.tasks) == 3
+          assert len(crew.agents) == 4 and len(crew.tasks) == 4
           print("[smoke] crew 构建 OK | process:", crew.process.value)
 
-          # 校验各 Agent 工具挂载
-          tools = {tuple(t.name for t in (a.tools or [])) for a in crew.agents}
-          flat = {n for tp in tools for n in tp}
-          assert "python_syntax_check" in flat, "自定义语法检查工具未挂载"
+          # 校验工具挂载(读/写/搜索/执行/语法检查 都应在)
+          flat = {t.name for a in crew.agents for t in (a.tools or [])}
+          for need in ["python_syntax_check", "shell_command", "python_run", "pytest_run", "code_search", "list_dir"]:
+              assert need in flat, f"工具未挂载: {need}"
           print("[smoke] 工具挂载 OK:", sorted(flat))
 
           # guardrail 逻辑(纯本地)
@@ -64,10 +67,11 @@ jobs:
           assert ok2, "code_solution_guardrail 应通过含代码块的产出"
           print("[smoke] guardrail 校验 OK")
 
-          # 自定义语法检查工具(纯本地)
+          # 执行/检查工具(纯本地,不依赖 LLM)
           assert "语法正确" in PythonSyntaxCheckTool()._run("x = 1\n")
           assert "语法错误" in PythonSyntaxCheckTool()._run("def broken(:\n")
-          print("[smoke] 语法检查工具 OK")
+          assert "已拒绝执行" in ShellCommandTool()._run("rm -rf /")  # 危险命令应被拦截
+          print("[smoke] 执行/检查工具 OK")
 
           # Flow 结构存在
           assert hasattr(CodingFlow, "kickoff")

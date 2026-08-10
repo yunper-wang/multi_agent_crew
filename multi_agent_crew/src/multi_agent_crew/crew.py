@@ -9,7 +9,14 @@ from crewai_tools import FileReadTool, FileWriterTool
 
 from .output_models import ImplementationPlan
 from .guardrails import code_solution_guardrail, json_output_guardrail
-from .tools.custom_tool import PythonSyntaxCheckTool
+from .tools import (
+    CodeSearchTool,
+    ListDirTool,
+    PythonRunTool,
+    PythonSyntaxCheckTool,
+    PytestRunTool,
+    ShellCommandTool,
+)
 
 # 本地 ONNX embedding(无需任何 API key;模型首次运行已缓存到本地)。
 # 本地代理不提供 embeddings 接口,故 memory/RAG 改用本地模型。
@@ -22,7 +29,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # 传入 Path 对象(而非 str)时 crewai 不会额外拼 knowledge/ 前缀。
 KNOWLEDGE_FILE = PROJECT_ROOT / "knowledge" / "coding_standards.md"
 
-# 工程师写代码的目标目录( FileWriterTool 的沙箱 base_dir )。
+# 工程师写代码的目标目录。
 GENERATED_DIR = PROJECT_ROOT / "generated"
 
 
@@ -51,7 +58,7 @@ def _flag(name: str, default: bool = False) -> bool:
 
 @CrewBase
 class MultiAgentCrew():
-    """MultiAgentCrew(coding agent):架构师 -> 工程师 -> 评审,协作完成编码需求。
+    """MultiAgentCrew(全能 coding agent):架构师 -> 工程师 -> 测试执行 -> 评审。
 
     环境变量开关:
       CREW_PROCESS=hierarchical  切换为层级流程(默认 sequential)
@@ -70,8 +77,8 @@ class MultiAgentCrew():
             config=self.agents_config['architect'], # type: ignore[index]
             verbose=True,
             llm=_build_llm(),
-            # 读本地文件(编码偏好/现有代码),base_dir 锁定项目根,cwd 无关
-            tools=[FileReadTool(base_dir=str(PROJECT_ROOT))],
+            # 探索:读文件 + 目录树 + 代码搜索
+            tools=[FileReadTool(base_dir=str(PROJECT_ROOT)), ListDirTool(), CodeSearchTool()],
         )
 
     @agent
@@ -80,8 +87,18 @@ class MultiAgentCrew():
             config=self.agents_config['coder'], # type: ignore[index]
             verbose=True,
             llm=_build_llm(),
-            # 把代码写入文件;base_dir 锁定项目根,任务里指定写到 generated/ 子目录
-            tools=[FileWriterTool(base_dir=str(PROJECT_ROOT))],
+            # 写代码:写文件 + 读文件 + 代码搜索
+            tools=[FileWriterTool(base_dir=str(PROJECT_ROOT)), FileReadTool(base_dir=str(PROJECT_ROOT)), CodeSearchTool()],
+        )
+
+    @agent
+    def tester(self) -> Agent:
+        return Agent(
+            config=self.agents_config['tester'], # type: ignore[index]
+            verbose=True,
+            llm=_build_llm(),
+            # 验证:跑 pytest + 运行 python + shell(工作区限定在 generated/)
+            tools=[PytestRunTool(), PythonRunTool(), ShellCommandTool()],
         )
 
     @agent
@@ -90,7 +107,8 @@ class MultiAgentCrew():
             config=self.agents_config['reviewer'], # type: ignore[index]
             verbose=True,
             llm=_build_llm(),
-            tools=[PythonSyntaxCheckTool()],  # 自定义工具:静态校验 Python 语法
+            # 评审:语法检查 + 代码搜索 + 复核测试
+            tools=[PythonSyntaxCheckTool(), CodeSearchTool(), PytestRunTool()],
         )
 
     # ---------------- tasks ----------------
@@ -107,6 +125,12 @@ class MultiAgentCrew():
     def code_task(self) -> Task:
         return Task(
             config=self.tasks_config['code_task'], # type: ignore[index]
+        )
+
+    @task
+    def test_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['test_task'], # type: ignore[index]
         )
 
     @task

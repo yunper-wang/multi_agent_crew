@@ -1,25 +1,42 @@
 # multi_agent_crew — coding agent
 
-基于 [crewAI](https://crewai.com) 的**多智能体写代码**示例:**架构师 → 工程师 → 评审** 三 Agent 协作,把一个编码需求变成可运行的代码。
+基于 [crewAI](https://crewai.com) 的**多智能体写代码**系统:**架构师 → 工程师 → 测试执行 → 评审** 四 Agent 协作,把一个编码需求变成**经过真实运行验证**的可运行代码。
+
+与一般「只会写」的 coding agent 不同,本项目的 Agent 具备**探索 / 编辑 / 执行 / 验证**全套能力(读文件、写文件、目录浏览、代码搜索、运行 Python、跑 pytest、执行 shell、语法检查),测试工程师会**真正运行**代码与测试,评审基于真实测试结果把关。
 
 给定一个编码需求(默认:实现一个 `retry` 装饰器 + 测试),流水线产出:
-- `generated/` 目录下的 **Python 源码与测试**(工程师用 FileWriterTool 写入)
-- `solution.md`:评审后的最终代码 + 评审说明
+- `generated/` 目录下的 **Python 源码与测试**(工程师用 FileWriterTool 写入,测试运行验证通过)
+- `solution.md`:评审后的最终代码 + 测试结论 + 评审说明
 - `solution_summary.md`(Flow deliver 分支):方案摘要 + 指标 + 结构
+
+## 能力一览
+
+| 能力 | 工具 | 挂载 Agent |
+|---|---|---|
+| 读文件 / 写文件 | `FileReadTool` / `FileWriterTool`(crewai-tools) | architect / coder |
+| 目录树浏览 | `ListDirTool` | architect |
+| 代码搜索(grep) | `CodeSearchTool` | architect / coder / reviewer |
+| 运行 Python 文件 | `PythonRunTool` | tester |
+| 跑 pytest | `PytestRunTool` | tester / reviewer |
+| 执行 shell 命令 | `ShellCommandTool`(限工作区+拦截危险命令) | tester |
+| 语法静态检查 | `PythonSyntaxCheckTool`(ast) | reviewer |
+
+> 后 6 个为自定义工具(`src/multi_agent_crew/tools/`),执行类工具工作目录限定在 `generated/`,带超时与输出截断。
 
 ## 功能一览
 
 | 功能 | 实现 | 状态 |
 |---|---|---|
-| 多 Agent 协作 | `Process.sequential`(可切 `hierarchical`) | ✅ |
-| crewai-tools 工具 | 架构师 `FileReadTool` / 工程师 `FileWriterTool` | ✅ |
-| 自定义工具 | `tools/custom_tool.py: PythonSyntaxCheckTool`(评审静态校验语法) | ✅ |
-| 结构化输出 | 架构师方案:提示词要纯 JSON + guardrail 按 `ImplementationPlan` 校验 | ✅ |
+| 多 Agent 协作 | `Process.sequential`(可切 `hierarchical`),4 Agent | ✅ |
+| crewai-tools 工具 | `FileReadTool` / `FileWriterTool` | ✅ |
+| 自定义执行工具 | shell/python/pytest 运行验证 | ✅ |
+| 自定义搜索工具 | grep 代码搜索 + 目录树 | ✅ |
+| 结构化输出 | 架构师方案:纯 JSON + guardrail 按 `ImplementationPlan` 校验 | ✅ |
 | Task guardrail | `guardrails.py`(JSON 校验 + 代码产物校验) | ✅ |
 | RAG 知识检索 | `knowledge/coding_standards.md` + 本地 ONNX embedder | ✅ |
 | Hierarchical | `CREW_PROCESS=hierarchical` + `manager_llm` | ✅ |
 | HITL | `CREW_HITL=1` 评审任务人工确认 | ✅(默认关) |
-| crewai Flow | `flow.py` 事件驱动编排,内嵌 Crew;多路路由+并行+汇聚+有界循环 | ✅ |
+| crewai Flow | `flow.py` 多路路由+并行+汇聚+有界循环 | ✅ |
 | Memory | `CREW_MEMORY=1` 开启 | ⚠ 降级(见下) |
 
 ## 环境要求(LLM 代理)
@@ -86,16 +103,19 @@ prepare → run_crew → assess(路由)
 
 ```
 src/multi_agent_crew/
-├── config/agents.yaml     # 3 个 coding Agent(架构师/工程师/评审)
-├── config/tasks.yaml      # 3 个 Task(规划/编码/评审)
+├── config/agents.yaml     # 4 个 coding Agent(架构师/工程师/测试执行/评审)
+├── config/tasks.yaml      # 4 个 Task(规划/编码/验证/评审)
 ├── crew.py                # 装配 LLM/工具/RAG/流程 + 开关
 ├── flow.py                # crewai Flow 编排(多分支/并行/汇聚/有界循环)
 ├── output_models.py       # ImplementationPlan 结构化输出模型
 ├── guardrails.py          # Task 护栏(JSON schema / 代码产物校验)
-├── tools/custom_tool.py   # 自定义工具 PythonSyntaxCheckTool
+├── tools/
+│   ├── custom_tool.py       # PythonSyntaxCheckTool(ast 语法检查)
+│   ├── execution_tools.py   # ShellCommandTool / PythonRunTool / PytestRunTool
+│   └── search_tools.py      # CodeSearchTool(grep) / ListDirTool(目录树)
 └── main.py                # Crew 入口(DEFAULT_REQUIREMENT)
 knowledge/                 # 编码规范/偏好(供 RAG/工具)
-generated/                 # 工程师写出的代码(运行产物)
+generated/                 # 工程师写出的代码(运行产物,测试验证通过)
 ```
 
 ## CI
