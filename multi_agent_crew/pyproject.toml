@@ -5,7 +5,9 @@ description = "multi_agent_crew using crewAI"
 authors = [{ name = "Your Name", email = "you@example.com" }]
 requires-python = ">=3.10,<3.14"
 dependencies = [
-    "crewai[tools]>=1.15.14,<2.0.0"
+    "crewai[tools]>=1.15.14,<2.0.0",
+    # crewai 的 anthropic provider 需要 anthropic SDK(不在 crewai[tools] 默认依赖里)
+    "anthropic>=0.40",
 ]
 
 [project.scripts]
