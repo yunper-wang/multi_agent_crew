@@ -1,18 +1,31 @@
-from crewai.tools import BaseTool
 from typing import Type
+
+from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
 
-class MyCustomToolInput(BaseModel):
-    """Input schema for MyCustomTool."""
-    argument: str = Field(..., description="Description of the argument.")
+class TextStatsInput(BaseModel):
+    """TextStatsTool 的输入。"""
 
-class MyCustomTool(BaseTool):
-    name: str = "Name of my tool"
+    text: str = Field(..., description="要统计的文本内容")
+
+
+class TextStatsTool(BaseTool):
+    """文本统计工具:给审校 Agent 用来量化检查报告篇幅是否达标。"""
+
+    name: str = "text_stats"
     description: str = (
-        "Clear description for what this tool is useful for, your agent will need this information to use it."
+        "统计一段中文文本的字符数、行数、段落数,并估算阅读时长(分钟)。"
+        "当你需要确认一篇报告/文章是否达到篇幅或结构要求时使用。"
     )
-    args_schema: Type[BaseModel] = MyCustomToolInput
+    args_schema: Type[BaseModel] = TextStatsInput
 
-    def _run(self, argument: str) -> str:
-        return "this is an example of a tool output, ignore it and move along."
+    def _run(self, text: str) -> str:
+        chars = len(text)
+        lines = text.count("\n") + 1 if text else 0
+        paragraphs = len([p for p in text.split("\n\n") if p.strip()])
+        minutes = round(chars / 400, 1)  # 中文约 400 字/分钟
+        return (
+            f"字符数:{chars} 行数:{lines} 段落数:{paragraphs} "
+            f"预计阅读时长:{minutes} 分钟"
+        )

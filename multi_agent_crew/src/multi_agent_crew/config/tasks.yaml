@@ -1,11 +1,14 @@
 research_task:
   description: >
-    围绕 {topic} 做一轮调研。首先使用文件读取工具打开本地知识文件
-    knowledge/user_preference.txt,了解用户的偏好与关注点;然后结合当前年份
-    {current_year},整理出最相关、最有价值的信息。
+    围绕 {topic} 做一轮调研。你可以:用文件读取工具打开本地知识文件
+    knowledge/user_preference.txt 了解用户偏好;也会自动检索内置的领域知识。
+    结合当前年份 {current_year},整理出最相关、最有价值的信息。
+    最终只输出一个 JSON 对象,不要任何额外解释或 markdown 围栏。
   expected_output: >
-    一份中文要点清单,包含 5 条关于 {topic} 的核心信息,
-    并标注每条是如何呼应用户偏好的。
+    一个纯 JSON 对象(不要 ``` 围栏、不要多余文字),结构为:
+    {"topic": "<主题>", "findings": [{"point": "<核心要点>",
+    "example": "<落地例子>", "relevance": "<如何呼应用户偏好>"}, ...]}
+    其中 findings 含 3~5 条。
   agent: researcher
 
 writing_task:

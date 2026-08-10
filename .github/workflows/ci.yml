@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装项目及依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e multi_agent_crew/
+
+      # CI 环境没有本地 LLM 代理,也不发真实 LLM 请求:
+      # 只做 导入 + 配置 + 离线构建 的冒烟检查(memory/knowledge 关闭以保持离线、快速)。
+      - name: 冒烟检查
+        env:
+          ANTHROPIC_BASE_URL: "http://localhost:0"   # 占位,构建期不发请求
+          ANTHROPIC_AUTH_TOKEN: "ci-placeholder"
+          CREW_MEMORY: "0"
+          CREW_KNOWLEDGE: "0"
+        run: |
+          python - <<'PY'
+          import crewai  # noqa: F401
+          import crewai_tools  # noqa: F401
+          from crewai import TaskOutput
+          from multi_agent_crew.crew import MultiAgentCrew
+          from multi_agent_crew.flow import ReportFlow
+          from multi_agent_crew.output_models import ResearchFindings
+          from multi_agent_crew.guardrails import json_output_guardrail, report_guardrail
+          from multi_agent_crew.tools.custom_tool import TextStatsTool
+          print("[smoke] imports OK")
+
+          # 离线构建 crew(不 kickoff、不联网)
+          crew = MultiAgentCrew().crew()
+          assert len(crew.agents) == 3 and len(crew.tasks) == 3
+          print("[smoke] crew 构建 OK | process:", crew.process.value)
+
+          # 校验各 Agent 工具挂载
+          tools = {tuple(t.name for t in (a.tools or [])) for a in crew.agents}
+          assert any("text_stats" in t for t in tools), "自定义工具未挂载"
+          print("[smoke] 工具挂载 OK:", sorted({n for tp in tools for n in tp}))
+
+          # guardrail 逻辑(纯本地)
+          g = json_output_guardrail(ResearchFindings)
+          ok, _ = g(TaskOutput(
+              description="",
+              raw='{"topic":"t","findings":[{"point":"p","example":"e","relevance":"r"}]}',
+              agent="", expected_output="",
+          ))
+          assert ok, "json_output_guardrail 应通过合法 JSON"
+          print("[smoke] guardrail 校验 OK")
+
+          # Flow 结构存在
+          assert hasattr(ReportFlow, "kickoff")
+          print("[smoke] Flow 结构 OK:", ReportFlow.__name__)
+          print("[smoke] 全部通过 ✅")
+          PY
