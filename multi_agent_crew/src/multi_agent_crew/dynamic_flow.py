@@ -27,9 +27,9 @@ from crewai.flow.persistence import persist
 from crewai_tools import FileWriterTool
 from pydantic import BaseModel, Field
 
-from .crew import GENERATED_DIR, PROJECT_ROOT, _build_llm
+from .crew import GENERATED_DIR, WORKSPACE, _build_llm
 from .guardrails import _extract_json, json_output_guardrail
-from .main import DEFAULT_REQUIREMENT
+from .main import DEFAULT_REQUIREMENT, resolve_requirement
 from .output_models import ImplementationPlan
 from .tools import PytestRunTool
 
@@ -73,9 +73,10 @@ class DynamicCodingFlow(Flow[DynamicState]):
 
     @start()
     def prepare(self) -> None:
-        """起点:准备工作目录与输出目录。"""
-        os.chdir(PROJECT_ROOT)
+        """起点:准备工作目录与输出目录,解析编码需求(支持命令行/环境变量覆盖)。"""
+        os.chdir(WORKSPACE)
         GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+        self.state.requirement = resolve_requirement()
         print(f"[Dyn] 起点 prepare: 需求={self.state.requirement[:40]}...")
 
     @listen(prepare)
@@ -113,7 +114,7 @@ class DynamicCodingFlow(Flow[DynamicState]):
             coder = Agent(
                 role="高级 Python 工程师", goal=f"写出 {path} 的完整可运行代码",
                 backstory="严谨,代码规范", llm=_tier_llm(path), verbose=False,
-                tools=[FileWriterTool(base_dir=str(PROJECT_ROOT))],
+                tools=[FileWriterTool(base_dir=str(WORKSPACE))],
             )
             task = Task(
                 description=(

@@ -2,10 +2,10 @@ plan_task:
   description: >
     理解以下编码需求,并给出实现方案:
     {requirement}
-    你可以先用目录浏览工具(list_dir)和代码搜索工具(code_search)了解项目现状,
-    用文件读取工具查看 knowledge/coding_preference.txt 了解编码偏好,
-    也会自动检索内置的编码规范。把需求拆解为若干文件/模块,明确每个文件的职责。
-    最终只输出一个 JSON 对象,不要任何额外解释或 markdown 围栏。
+    你可以先用目录浏览工具(list_dir)和代码搜索工具(code_search)了解当前工作区的
+    项目现状(已有结构/约定);编码规范与编码偏好会通过知识检索自动提供给你。
+    把需求拆解为若干文件/模块,明确每个文件的职责。最终只输出一个 JSON 对象,
+    不要任何额外解释或 markdown 围栏。
   expected_output: >
     一个纯 JSON 对象(不要 ``` 围栏、不要多余文字),结构为:
     {"goal": "<一句话目标>", "files": [{"path": "<相对 generated/ 的文件路径>",

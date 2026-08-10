@@ -19,18 +19,24 @@ from .tools import (
 )
 
 # 本地 ONNX embedding(无需任何 API key;模型首次运行已缓存到本地)。
-# 本地代理不提供 embeddings 接口,故 memory/RAG 改用本地模型。
 EMBEDDER = {"provider": "onnx"}
 
-# 项目根目录(multi_agent_crew/)的绝对路径,从包位置推算,与运行时 cwd 无关。
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# ---- 两个根目录,分开管理 ----
+# PKG_ROOT:包资源根(knowledge/ 规范与偏好随包分发),从包位置推算,只读。
+PKG_ROOT = Path(__file__).resolve().parents[2]
+# WORKSPACE:用户的工作区(代码落点 generated/、文件读写/命令执行都在这里)。
+# 默认当前工作目录,可用 MAC_WORKSPACE 覆盖。这样经 npm CLI 在用户项目里运行时,
+# 代码写进用户项目而不是只读的包目录。
+WORKSPACE = Path(os.environ.get("MAC_WORKSPACE") or os.getcwd()).resolve()
 
-# 编码规范知识文件(RAG 用)的绝对路径。
-# 传入 Path 对象(而非 str)时 crewai 不会额外拼 knowledge/ 前缀。
-KNOWLEDGE_FILE = PROJECT_ROOT / "knowledge" / "coding_standards.md"
+# 编码规范/偏好知识文件(RAG 用),随包分发,用绝对路径(cwd 无关)。
+KNOWLEDGE_FILES = [
+    PKG_ROOT / "knowledge" / "coding_standards.md",
+    PKG_ROOT / "knowledge" / "coding_preference.txt",
+]
 
-# 工程师写代码的目标目录。
-GENERATED_DIR = PROJECT_ROOT / "generated"
+# 工程师写代码的目标目录(在用户工作区下)。
+GENERATED_DIR = WORKSPACE / "generated"
 
 
 def _build_llm(max_tokens: int = 16384) -> LLM:
@@ -65,6 +71,7 @@ class MultiAgentCrew():
       CREW_HITL=1                评审任务开启人工确认(默认关,便于无人值守运行)
       CREW_MEMORY=1              开启记忆(默认关:本代理不兼容 memory 的结构化分析,会降级)
       CREW_KNOWLEDGE=0           关闭 RAG 编码规范检索(默认开;CI 或快速运行可关)
+      MAC_WORKSPACE=<路径>       指定代码工作区(默认当前目录)
     """
 
     agents: list[BaseAgent]
@@ -77,8 +84,8 @@ class MultiAgentCrew():
             config=self.agents_config['architect'], # type: ignore[index]
             verbose=True,
             llm=_build_llm(),
-            # 探索:读文件 + 目录树 + 代码搜索
-            tools=[FileReadTool(base_dir=str(PROJECT_ROOT)), ListDirTool(), CodeSearchTool()],
+            # 探索用户工作区:读文件 + 目录树 + 代码搜索(编码规范/偏好经 RAG 注入)
+            tools=[FileReadTool(base_dir=str(WORKSPACE)), ListDirTool(), CodeSearchTool()],
         )
 
     @agent
@@ -87,8 +94,8 @@ class MultiAgentCrew():
             config=self.agents_config['coder'], # type: ignore[index]
             verbose=True,
             llm=_build_llm(),
-            # 写代码:写文件 + 读文件 + 代码搜索
-            tools=[FileWriterTool(base_dir=str(PROJECT_ROOT)), FileReadTool(base_dir=str(PROJECT_ROOT)), CodeSearchTool()],
+            # 写代码到用户工作区:写文件 + 读文件 + 代码搜索
+            tools=[FileWriterTool(base_dir=str(WORKSPACE)), FileReadTool(base_dir=str(WORKSPACE)), CodeSearchTool()],
         )
 
     @agent
@@ -137,7 +144,7 @@ class MultiAgentCrew():
     def review_task(self) -> Task:
         return Task(
             config=self.tasks_config['review_task'], # type: ignore[index]
-            output_file='solution.md',  # crewai 按 cwd 相对写;经 flow 运行时先 chdir 到项目根
+            output_file='solution.md',  # 按 cwd(=工作区)相对写
             guardrail=code_solution_guardrail(min_chars=200),  # 护栏:含 python 代码块+篇幅
             human_input=_flag("CREW_HITL", False),      # HITL 开关
         )
@@ -150,7 +157,6 @@ class MultiAgentCrew():
         hierarchical = os.environ.get("CREW_PROCESS", "").strip().lower() == "hierarchical"
         # memory 默认关:crewai memory 的智能分析/抽取内部依赖结构化输出(tool_choice),
         # 与本代理模型(强制 thinking)不兼容,会降级并刷警告;RAG(知识检索)则完全可用。
-        # 需要时仍可 CREW_MEMORY=1 开启(接受降级)。
         use_memory = _flag("CREW_MEMORY", False)       # CI/快速运行:CREW_MEMORY=0
         use_knowledge = _flag("CREW_KNOWLEDGE", True)  # CI/快速运行可关:CREW_KNOWLEDGE=0
         # embedder 同时服务于 memory 和 knowledge(RAG):任一开启就需要。
@@ -163,8 +169,8 @@ class MultiAgentCrew():
             verbose=True,
             memory=use_memory,                         # 短期/长期/实体记忆
             embedder=embedder,                         # 本地 ONNX 向量
-            knowledge_sources=(                        # RAG:检索编码规范
-                [TextFileKnowledgeSource(file_paths=[KNOWLEDGE_FILE])]
+            knowledge_sources=(                        # RAG:检索编码规范/偏好(随包分发)
+                [TextFileKnowledgeSource(file_paths=[f]) for f in KNOWLEDGE_FILES]
                 if use_knowledge
                 else None
             ),

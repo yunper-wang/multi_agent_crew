@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 # 代码工作区 = 项目根的 generated/ 目录(从包位置推算)。
 # tools/execution_tools.py -> parents[3] 是项目根。
-WORKSPACE = Path(__file__).resolve().parents[3] / "generated"
+WORKSPACE = Path(os.environ.get("MAC_WORKSPACE") or os.getcwd()).resolve() / "generated"
 
 _MAX_OUTPUT = 4000      # 输出截断长度
 _DEFAULT_TIMEOUT = 60   # 秒

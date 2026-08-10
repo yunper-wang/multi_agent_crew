@@ -8,6 +8,8 @@ dependencies = [
     "crewai[tools]>=1.15.14,<2.0.0",
     # crewai 的 anthropic provider 需要 anthropic SDK(不在 crewai[tools] 默认依赖里)
     "anthropic>=0.40",
+    # tester Agent 运行 pytest 验证代码
+    "pytest>=8",
 ]
 
 [project.scripts]

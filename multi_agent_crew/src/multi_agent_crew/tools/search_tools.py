@@ -5,14 +5,15 @@ CodeSearchTool:按正则 grep 代码;ListDirTool:查看目录树。
 """
 
 from pathlib import Path
+import os
 import re
 from typing import Type
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
-# 项目根目录(从包位置推算:tools/search_tools.py -> parents[3])。
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# 用户工作区(从运行时 cwd 推算,可用 MAC_WORKSPACE 覆盖)——搜索/浏览针对用户项目。
+WORKSPACE = Path(os.environ.get("MAC_WORKSPACE") or os.getcwd()).resolve()
 
 _MAX_RESULTS = 50
 _MAX_OUTPUT = 4000
@@ -39,8 +40,8 @@ class CodeSearchTool(BaseTool):
     args_schema: Type[BaseModel] = CodeSearchInput
 
     def _run(self, pattern: str, path: str = ".") -> str:
-        base = (PROJECT_ROOT / path).resolve()
-        if PROJECT_ROOT not in base.parents and base != PROJECT_ROOT:
+        base = (WORKSPACE / path).resolve()
+        if WORKSPACE not in base.parents and base != WORKSPACE:
             return f"路径越界: {path}"
         if not base.exists():
             return f"路径不存在: {path}"
@@ -57,7 +58,7 @@ class CodeSearchTool(BaseTool):
             try:
                 for i, line in enumerate(f.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
                     if rx.search(line):
-                        hits.append(f"{f.relative_to(PROJECT_ROOT)}:{i}: {line.strip()[:120]}")
+                        hits.append(f"{f.relative_to(WORKSPACE)}:{i}: {line.strip()[:120]}")
                         if len(hits) >= _MAX_RESULTS:
                             break
             except Exception:
@@ -82,8 +83,8 @@ class ListDirTool(BaseTool):
     args_schema: Type[BaseModel] = ListDirInput
 
     def _run(self, path: str = ".", max_depth: int = 3) -> str:
-        base = (PROJECT_ROOT / path).resolve()
-        if PROJECT_ROOT not in base.parents and base != PROJECT_ROOT:
+        base = (WORKSPACE / path).resolve()
+        if WORKSPACE not in base.parents and base != WORKSPACE:
             return f"路径越界: {path}"
         if not base.is_dir():
             return f"不是目录: {path}"
@@ -104,4 +105,4 @@ class ListDirTool(BaseTool):
                     walk(e, depth + 1, prefix + "  ")
 
         walk(base, 1, "")
-        return _truncate(f"{base.relative_to(PROJECT_ROOT) or '.'}/\n" + "\n".join(lines)) if lines else "(空目录)"
+        return _truncate(f"{base.relative_to(WORKSPACE) or '.'}/\n" + "\n".join(lines)) if lines else "(空目录)"

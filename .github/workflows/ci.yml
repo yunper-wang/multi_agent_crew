@@ -83,3 +83,10 @@ jobs:
           print("[smoke] 动态工作流 OK:", DynamicCodingFlow.__name__)
           print("[smoke] 全部通过 ✅")
           PY
+
+      # npm CLI 冒烟:help 应在未准备 Python 环境前就能正常输出并退出 0
+      - name: npm CLI 冒烟
+        run: |
+          node --version
+          node bin/cli.js --help | head -5
+          node -e "const p=require('./package.json'); if(!p.bin||!p.bin.macode) process.exit(1); console.log('package.json bin OK:', Object.keys(p.bin))"

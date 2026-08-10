@@ -26,13 +26,12 @@ from pathlib import Path
 from crewai.flow.flow import Flow, and_, listen, router, start
 from pydantic import BaseModel, Field
 
-from .crew import MultiAgentCrew, _build_llm
-from .main import DEFAULT_REQUIREMENT
+from .crew import MultiAgentCrew, WORKSPACE, _build_llm
+from .main import DEFAULT_REQUIREMENT, resolve_requirement
 
-# 项目根目录与产物路径(与调用时的 cwd 无关)
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SOLUTION_PATH = PROJECT_ROOT / "solution.md"
-SUMMARY_PATH = PROJECT_ROOT / "solution_summary.md"
+# 产物路径(落在用户工作区)
+SOLUTION_PATH = WORKSPACE / "solution.md"
+SUMMARY_PATH = WORKSPACE / "solution_summary.md"
 
 # 路由阈值(字节)
 DELIVER_BYTES = 2000   # >= 直接交付
@@ -61,8 +60,9 @@ class CodingFlow(Flow[SolutionState]):
     # ---------------- 起点 ----------------
     @start()
     def prepare(self) -> None:
-        """起点:准备编码需求,并把工作目录锚定到项目根(solution.md 落点)。"""
-        os.chdir(PROJECT_ROOT)  # crewai 的 output_file 按 cwd 相对写,先锚定到项目根
+        """起点:准备编码需求(支持命令行/环境变量覆盖),锚定工作目录到用户工作区。"""
+        os.chdir(WORKSPACE)  # crewai 的 output_file 按 cwd 相对写,锚定到工作区
+        self.state.requirement = resolve_requirement()
         self.state.revisions = 0
         print(f"[Flow] 起点 prepare: 需求={self.state.requirement[:40]}...")
 

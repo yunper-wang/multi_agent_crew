@@ -9,6 +9,25 @@
 - `solution.md`:评审后的最终代码 + 测试结论 + 评审说明
 - `solution_summary.md`(Flow deliver 分支):方案摘要 + 指标 + 结构
 
+## 安装与使用(npm CLI,推荐)
+
+以 npm 包形式安装部署(类似 grok build / claude code 的使用方式):
+
+```bash
+npm install -g .          # 从本仓库全局安装(或 npm install -g <tarball>)
+
+# 首次运行自动准备 Python 环境(仅需一次),随后:
+macode "实现一个带过期时间的 LRU 缓存,附 pytest 测试"   # 默认 crew 模式
+macode flow "..."        # 事件驱动 Flow
+macode dynamic "..."     # 动态工作流(并行子代理+模型路由+成本核算)
+macode --help
+```
+
+**代码写进你运行命令的当前目录**(`generated/` + `solution.md`),而不是包目录。运行前需设置:
+`ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`(指向你的 Anthropic 兼容端点)。
+
+> 亦可 `npm pack` 打出 `multi-agent-coder-*.tgz` 后 `npm install -g <tgz>` 离线安装。
+
 ## 能力一览
 
 | 能力 | 工具 | 挂载 Agent |
