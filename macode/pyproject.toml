@@ -1,7 +1,7 @@
 [project]
-name = "multi_agent_crew"
+name = "macode"
 version = "0.1.0"
-description = "multi_agent_crew using crewAI"
+description = "macode:多智能体 coding agent(架构师→工程师→测试执行→评审),基于 crewAI"
 authors = [{ name = "Your Name", email = "you@example.com" }]
 requires-python = ">=3.10,<3.14"
 dependencies = [
@@ -13,12 +13,12 @@ dependencies = [
 ]
 
 [project.scripts]
-multi_agent_crew = "multi_agent_crew.main:run"
-run_crew = "multi_agent_crew.main:run"
-train = "multi_agent_crew.main:train"
-replay = "multi_agent_crew.main:replay"
-test = "multi_agent_crew.main:test"
-run_with_trigger = "multi_agent_crew.main:run_with_trigger"
+macode = "macode.main:run"
+run_crew = "macode.main:run"
+train = "macode.main:train"
+replay = "macode.main:replay"
+test = "macode.main:test"
+run_with_trigger = "macode.main:run_with_trigger"
 
 [build-system]
 requires = ["hatchling"]

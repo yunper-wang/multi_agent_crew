@@ -18,7 +18,7 @@ jobs:
       - name: 安装项目及依赖
         run: |
           python -m pip install --upgrade pip
-          pip install -e multi_agent_crew/
+          pip install -e macode/
 
       # CI 环境没有本地 LLM 代理,也不发真实 LLM 请求:
       # 只做 导入 + 配置 + 离线构建 的冒烟检查(memory/knowledge 关闭以保持离线、快速)。
@@ -33,11 +33,11 @@ jobs:
           import crewai  # noqa: F401
           import crewai_tools  # noqa: F401
           from crewai import TaskOutput
-          from multi_agent_crew.crew import MultiAgentCrew
-          from multi_agent_crew.flow import CodingFlow
-          from multi_agent_crew.output_models import ImplementationPlan
-          from multi_agent_crew.guardrails import code_solution_guardrail, json_output_guardrail
-          from multi_agent_crew.tools import (
+          from macode.crew import MultiAgentCrew
+          from macode.flow import CodingFlow
+          from macode.output_models import ImplementationPlan
+          from macode.guardrails import code_solution_guardrail, json_output_guardrail
+          from macode.tools import (
               CodeSearchTool, ListDirTool, PythonRunTool,
               PythonSyntaxCheckTool, PytestRunTool, ShellCommandTool,
           )
@@ -78,7 +78,7 @@ jobs:
           print("[smoke] Flow 结构 OK:", CodingFlow.__name__)
 
           # 动态工作流结构
-          from multi_agent_crew.dynamic_flow import DynamicCodingFlow, _tier_name
+          from macode.dynamic_flow import DynamicCodingFlow, _tier_name
           assert _tier_name("retry.py") == "strong" and _tier_name("test_x.py") == "fast"
           print("[smoke] 动态工作流 OK:", DynamicCodingFlow.__name__)
           print("[smoke] 全部通过 ✅")

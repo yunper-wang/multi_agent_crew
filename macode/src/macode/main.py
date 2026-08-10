@@ -3,7 +3,7 @@ import os
 import sys
 import warnings
 
-from multi_agent_crew.crew import MultiAgentCrew
+from macode.crew import MultiAgentCrew
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 

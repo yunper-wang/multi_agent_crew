@@ -10,9 +10,9 @@
 与 flow.py 的区别:flow.py 是「固定 Crew + 事件分支」;本模块是「动态规划 + 并行扇出」。
 
 运行:
-    cd multi_agent_crew
-    python -m multi_agent_crew.dynamic_flow
-    DYN_SKIP_PLAN=1 python -m multi_agent_crew.dynamic_flow   # 测试:跳过 LLM 规划,用内置小计划
+    cd macode
+    python -m macode.dynamic_flow
+    DYN_SKIP_PLAN=1 python -m macode.dynamic_flow   # 测试:跳过 LLM 规划,用内置小计划
 """
 
 import json

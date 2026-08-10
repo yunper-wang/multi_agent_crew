@@ -14,9 +14,9 @@
                   └─ "too_short"─> notify_short(@listen)        过短,放弃并提示
 
 运行:
-    cd multi_agent_crew
-    python -m multi_agent_crew.flow          # 完整跑(含 Crew)
-    FLOW_SKIP_CREW=1 python -m multi_agent_crew.flow   # 测试编排:跳过昂贵 Crew,复用现有 solution.md
+    cd macode
+    python -m macode.flow          # 完整跑(含 Crew)
+    FLOW_SKIP_CREW=1 python -m macode.flow   # 测试编排:跳过昂贵 Crew,复用现有 solution.md
 """
 
 from datetime import datetime

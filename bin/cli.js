@@ -17,8 +17,8 @@ const os = require("os");
 const path = require("path");
 
 const PKG_ROOT = path.resolve(__dirname, "..");
-const PY_PROJ = path.join(PKG_ROOT, "multi_agent_crew"); // 随包分发的 Python 项目
-const WORK_HOME = path.join(os.homedir(), ".multi-agent-coder");
+const PY_PROJ = path.join(PKG_ROOT, "macode"); // 随包分发的 Python 项目
+const WORK_HOME = path.join(os.homedir(), ".macode");
 const VENV = path.join(WORK_HOME, "venv");
 const BIN = path.join(VENV, "bin");
 const PY = path.join(BIN, "python");
@@ -102,10 +102,10 @@ function main() {
     cmdArgs = [];
   } else if (mode === "flow") {
     cmd = PY;
-    cmdArgs = ["-m", "multi_agent_crew.flow"];
+    cmdArgs = ["-m", "macode.flow"];
   } else {
     cmd = PY;
-    cmdArgs = ["-m", "multi_agent_crew.dynamic_flow"];
+    cmdArgs = ["-m", "macode.dynamic_flow"];
   }
 
   const r = spawnSync(cmd, cmdArgs, { stdio: "inherit", env, cwd: process.cwd() });

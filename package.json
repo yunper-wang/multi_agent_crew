@@ -1,17 +1,17 @@
 {
-  "name": "multi-agent-coder",
+  "name": "macode",
   "version": "0.3.0",
-  "description": "多智能体 coding agent(架构师→工程师→测试执行→评审),基于 crewAI。读/写/搜索/执行/验证全套能力,支持固定 Crew、事件驱动 Flow、动态并行工作流三种编排。",
+  "description": "macode:多智能体 coding agent(架构师→工程师→测试执行→评审),基于 crewAI。读/写/搜索/执行/验证全套能力,支持固定 Crew、事件驱动 Flow、动态并行工作流三种编排。",
   "license": "MIT",
   "bin": {
     "macode": "bin/cli.js"
   },
   "files": [
     "bin/",
-    "multi_agent_crew/src/",
-    "multi_agent_crew/knowledge/",
-    "multi_agent_crew/pyproject.toml",
-    "multi_agent_crew/README.md"
+    "macode/src/",
+    "macode/knowledge/",
+    "macode/pyproject.toml",
+    "macode/README.md"
   ],
   "engines": {
     "node": ">=18"
