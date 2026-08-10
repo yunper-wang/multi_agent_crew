@@ -14,7 +14,7 @@
 | RAG 知识检索 | `knowledge_sources` + 本地 ONNX embedder | ✅ |
 | Hierarchical | `CREW_PROCESS=hierarchical` + `manager_llm` | ✅ |
 | HITL | `CREW_HITL=1` 审校任务人工确认 | ✅(默认关) |
-| crewai Flow | `flow.py` 事件驱动编排,内嵌 Crew | ✅ |
+| crewai Flow | `flow.py` 事件驱动编排,内嵌 Crew;多路路由+并行+汇聚+有界循环 | ✅ |
 | Memory | `CREW_MEMORY=1` 开启 | ⚠ 降级(见下) |
 
 ## 环境要求(LLM 代理)
@@ -38,9 +38,21 @@ run_crew                  # 或: python -c "from multi_agent_crew.main import ru
 
 # 方式二:跑 Flow(事件驱动编排,内嵌 Crew)
 python -m multi_agent_crew.flow
+
+# 仅测试 Flow 编排(跳过昂贵的 Crew,复用现有 report.md):
+FLOW_SKIP_CREW=1 python -m multi_agent_crew.flow
 ```
 
-产物 `report.md` 写入项目根目录。
+产物 `report.md` 写入项目根目录;Flow 的 deliver 分支还会产出 `report_summary.md`(摘要+指标+大纲)。
+
+### Flow 分支拓扑
+
+```
+prepare → run_crew → assess(路由)
+   ├─ deliver   → make_abstract / compute_metrics / extract_outline(并行) → package(and_ 汇聚)
+   ├─ revise    → expand(LLM 扩充) → reassess(重评,有界循环,最多 MAX_REVISIONS 次)
+   └─ too_short → notify_short
+```
 
 ## 环境变量开关
 
@@ -50,6 +62,7 @@ python -m multi_agent_crew.flow
 | `CREW_HITL` | `0` | 设 `1` 让审校任务在产出前等待人工确认 |
 | `CREW_MEMORY` | `0` | 设 `1` 开启记忆(本代理下智能分析层降级,见下) |
 | `CREW_KNOWLEDGE` | `1` | 设 `0` 关闭 RAG 知识检索 |
+| `FLOW_SKIP_CREW` | `0` | 设 `1` 跑 Flow 时跳过 Crew 执行(复用现有 report.md,便于测试编排) |
 
 ## 本仓库的环境适配说明
 
