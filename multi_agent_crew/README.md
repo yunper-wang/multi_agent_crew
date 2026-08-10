@@ -37,6 +37,7 @@
 | Hierarchical | `CREW_PROCESS=hierarchical` + `manager_llm` | ✅ |
 | HITL | `CREW_HITL=1` 评审任务人工确认 | ✅(默认关) |
 | crewai Flow | `flow.py` 多路路由+并行+汇聚+有界循环 | ✅ |
+| **动态工作流**(Pi-Dynamic-Workflows 风格) | `dynamic_flow.py`:动态规划子任务+并行子代理+模型路由+成本核算+`@persist`持久化 | ✅ |
 | Memory | `CREW_MEMORY=1` 开启 | ⚠ 降级(见下) |
 
 ## 环境要求(LLM 代理)
@@ -63,9 +64,31 @@ python -m multi_agent_crew.flow
 
 # 仅测试 Flow 编排(跳过昂贵的 Crew,复用现有 solution.md):
 FLOW_SKIP_CREW=1 python -m multi_agent_crew.flow
+
+# 方式三:动态工作流(动态规划子任务 -> 并行子代理 -> 模型路由 -> 成本核算 -> 验证)
+python -m multi_agent_crew.dynamic_flow
+
+# 仅测试动态编排(跳过 LLM 规划,用内置小计划):
+DYN_SKIP_PLAN=1 python -m multi_agent_crew.dynamic_flow
 ```
 
 产物:`generated/` 下的代码文件 + `solution.md`(评审后最终代码);Flow 的 deliver 分支还会产出 `solution_summary.md`。
+
+### 动态工作流(dynamic_flow.py)
+
+Pi-Dynamic-Workflows 风格的动态编排,区别于 flow.py 的「固定 Crew + 事件分支」:
+
+```
+prepare → plan(架构师动态规划出 N 个文件子任务)
+        → fan_out(N 个并行子代理,每个写一个文件;按文件类型路由 strong/fast 档模型;聚合 token)
+        → verify(对 generated/ 跑 pytest)
+        → finalize(成本核算汇总 + 交付)
+```
+
+- **并行子代理**:`ThreadPoolExecutor` 并发执行多个独立 Crew(LLM 调用是 I/O 密集)。
+- **模型路由**:`test_*`/`conftest.py` 走 fast 档,核心逻辑走 strong 档(多提供方时可指向不同真实模型)。
+- **成本核算**:聚合各 worker 的 `usage_metrics` 报告 token 总量。
+- **持久化/可恢复**:`@persist` 把 Flow 状态落 SQLite(`~/Library/Application Support/multi_agent_crew/flow_states.db`),崩溃后可按 `id` 恢复续跑。
 
 ### Flow 分支拓扑
 
@@ -107,6 +130,7 @@ src/multi_agent_crew/
 ├── config/tasks.yaml      # 4 个 Task(规划/编码/验证/评审)
 ├── crew.py                # 装配 LLM/工具/RAG/流程 + 开关
 ├── flow.py                # crewai Flow 编排(多分支/并行/汇聚/有界循环)
+├── dynamic_flow.py        # 动态工作流(动态规划+并行子代理+模型路由+成本核算+持久化)
 ├── output_models.py       # ImplementationPlan 结构化输出模型
 ├── guardrails.py          # Task 护栏(JSON schema / 代码产物校验)
 ├── tools/

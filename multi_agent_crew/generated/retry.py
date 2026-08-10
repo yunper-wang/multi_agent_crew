@@ -1,63 +1,75 @@
-"""通用重试装饰器:对指定异常类型按指数退避策略重试,其余异常直接抛出。
+"""A retry decorator with exponential backoff and selective exception handling.
 
-仅依赖标准库,支持 Python 3.10+(使用 typing.ParamSpec 保留被装饰函数签名)。
+Usage::
+
+    @retry(max_retries=3, base_delay=0.1, backoff_factor=2.0,
+           exceptions=(ConnectionError,))
+    def fetch_data():
+        ...
+
+The decorated function is retried at most ``max_retries`` times when it raises
+one of ``exceptions``. Between attempts it sleeps for ``base_delay`` seconds,
+multiplied by ``backoff_factor`` after each failed attempt. Any exception that
+is not an instance of ``exceptions`` propagates immediately.
 """
 
 from __future__ import annotations
 
 import functools
 import time
-from typing import Callable, ParamSpec, TypeVar
+from typing import Any, Callable, Tuple, Type, TypeVar
 
-# ParamSpec/TypeVar 用于让装饰器"透传"被装饰函数的参数与返回类型,
-# 避免装饰后丢失静态类型信息
-P = ParamSpec("P")
-T = TypeVar("T")
+F = TypeVar("F", bound=Callable[..., Any])
+
+__all__ = ["retry"]
 
 
 def retry(
-    max_attempts: int = 3,
-    base_delay: float = 1.0,
-    exceptions: tuple[type[BaseException], ...] = (Exception,),
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """装饰器工厂:对指定异常按指数退避重试,不在列表内的异常立即上抛。
+    max_retries: int = 3,
+    base_delay: float = 0.1,
+    backoff_factor: float = 2.0,
+    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+) -> Callable[[F], F]:
+    """Return a decorator that retries the wrapped function on failure.
 
-    参数:
-        max_attempts: 最大尝试次数(含首次调用),必须 >= 1。
-        base_delay: 首次重试前的休眠秒数,必须 >= 0;之后每次重试翻倍。
-        exceptions: 触发重试的异常类型元组,任一命中即重试;
-            不在其中的异常不重试、直接向上传播。
+    Args:
+        max_retries: Maximum number of retries after the initial attempt
+            (total attempts = ``max_retries + 1``).
+        base_delay: Delay in seconds before the first retry.
+        backoff_factor: Multiplier applied to the delay after each failure.
+        exceptions: Tuple of exception types that trigger a retry. Any other
+            exception is raised immediately without retrying.
 
-    返回:
-        装饰器,用法为 @retry(...);被装饰函数的签名与元数据保持不变。
+    Returns:
+        A decorator applying the retry policy to the wrapped callable.
 
-    抛出:
-        ValueError: max_attempts < 1 或 base_delay < 0 时,在装饰阶段即报错,
-            让配置错误尽早暴露,而不是等到运行期才失败。
+    Raises:
+        ValueError: If the configuration is invalid.
     """
-    if max_attempts < 1:
-        raise ValueError(f"max_attempts 必须 >= 1,当前值: {max_attempts!r}")
+    if max_retries < 0:
+        raise ValueError("max_retries must be >= 0")
     if base_delay < 0:
-        raise ValueError(f"base_delay 必须 >= 0,当前值: {base_delay!r}")
+        raise ValueError("base_delay must be >= 0")
+    if backoff_factor < 1:
+        raise ValueError("backoff_factor must be >= 1")
+    if not exceptions:
+        raise ValueError("exceptions must not be empty")
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        @functools.wraps(func)  # 保留 __name__/__doc__ 等元数据,便于调试与内省
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            for attempt in range(1, max_attempts + 1):
+    def decorator(func: F) -> F:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            delay = base_delay
+            attempt = 0
+            while True:
                 try:
                     return func(*args, **kwargs)
                 except exceptions:
-                    if attempt == max_attempts:
-                        # 裸 raise 重新抛出当前异常,保留原始 traceback 以便定位根因
+                    if attempt >= max_retries:
                         raise
-                    # 指数退避(第 n 次失败后等 base_delay * 2**(n-1),即 1s、2s、4s…):
-                    # 给瞬时故障(网络抖动、限流)留出恢复时间,同时避免固定间隔
-                    # 让多个调用方在同一时刻"撞车"式重试
-                    time.sleep(base_delay * 2 ** (attempt - 1))
-            # 逻辑上不可达:循环只能以 return 或 raise 结束;
-            # 保留此行仅为满足类型检查器对"所有路径都有返回"的要求
-            raise AssertionError("unreachable")  # pragma: no cover
+                    time.sleep(delay)
+                    delay *= backoff_factor
+                    attempt += 1
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator

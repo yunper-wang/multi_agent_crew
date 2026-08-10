@@ -76,5 +76,10 @@ jobs:
           # Flow 结构存在
           assert hasattr(CodingFlow, "kickoff")
           print("[smoke] Flow 结构 OK:", CodingFlow.__name__)
+
+          # 动态工作流结构
+          from multi_agent_crew.dynamic_flow import DynamicCodingFlow, _tier_name
+          assert _tier_name("retry.py") == "strong" and _tier_name("test_x.py") == "fast"
+          print("[smoke] 动态工作流 OK:", DynamicCodingFlow.__name__)
           print("[smoke] 全部通过 ✅")
           PY
