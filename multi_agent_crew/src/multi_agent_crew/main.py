@@ -2,11 +2,15 @@
 import sys
 import warnings
 
-from datetime import datetime
-
 from multi_agent_crew.crew import MultiAgentCrew
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
+
+# 默认编码需求(可改成任何写代码的任务)。保持小而自包含,便于端到端跑通。
+DEFAULT_REQUIREMENT = (
+    "实现一个 Python 装饰器 retry:支持指定最大重试次数、指数退避间隔、"
+    "以及只对指定异常类型重试(其余异常直接抛出);附带 pytest 单元测试。"
+)
 
 
 def run():
@@ -14,8 +18,7 @@ def run():
     Run the crew.
     """
     inputs = {
-        'topic': 'AI 大模型',
-        'current_year': str(datetime.now().year)
+        'requirement': DEFAULT_REQUIREMENT,
     }
 
     try:
@@ -29,8 +32,7 @@ def train():
     Train the crew for a given number of iterations.
     """
     inputs = {
-        "topic": "AI LLMs",
-        'current_year': str(datetime.now().year)
+        "requirement": DEFAULT_REQUIREMENT,
     }
     try:
         MultiAgentCrew().crew().train(n_iterations=int(sys.argv[1]), filename=sys.argv[2], inputs=inputs)
@@ -53,8 +55,7 @@ def test():
     Test the crew execution and returns the results.
     """
     inputs = {
-        "topic": "AI LLMs",
-        "current_year": str(datetime.now().year)
+        "requirement": DEFAULT_REQUIREMENT,
     }
 
     try:
@@ -79,8 +80,7 @@ def run_with_trigger():
 
     inputs = {
         "crewai_trigger_payload": trigger_payload,
-        "topic": "",
-        "current_year": ""
+        "requirement": DEFAULT_REQUIREMENT,
     }
 
     try:

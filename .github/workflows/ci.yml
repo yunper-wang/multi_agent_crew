@@ -34,10 +34,10 @@ jobs:
           import crewai_tools  # noqa: F401
           from crewai import TaskOutput
           from multi_agent_crew.crew import MultiAgentCrew
-          from multi_agent_crew.flow import ReportFlow
-          from multi_agent_crew.output_models import ResearchFindings
-          from multi_agent_crew.guardrails import json_output_guardrail, report_guardrail
-          from multi_agent_crew.tools.custom_tool import TextStatsTool
+          from multi_agent_crew.flow import CodingFlow
+          from multi_agent_crew.output_models import ImplementationPlan
+          from multi_agent_crew.guardrails import code_solution_guardrail, json_output_guardrail
+          from multi_agent_crew.tools.custom_tool import PythonSyntaxCheckTool
           print("[smoke] imports OK")
 
           # 离线构建 crew(不 kickoff、不联网)
@@ -47,21 +47,30 @@ jobs:
 
           # 校验各 Agent 工具挂载
           tools = {tuple(t.name for t in (a.tools or [])) for a in crew.agents}
-          assert any("text_stats" in t for t in tools), "自定义工具未挂载"
-          print("[smoke] 工具挂载 OK:", sorted({n for tp in tools for n in tp}))
+          flat = {n for tp in tools for n in tp}
+          assert "python_syntax_check" in flat, "自定义语法检查工具未挂载"
+          print("[smoke] 工具挂载 OK:", sorted(flat))
 
           # guardrail 逻辑(纯本地)
-          g = json_output_guardrail(ResearchFindings)
+          g = json_output_guardrail(ImplementationPlan)
           ok, _ = g(TaskOutput(
               description="",
-              raw='{"topic":"t","findings":[{"point":"p","example":"e","relevance":"r"}]}',
+              raw='{"goal":"g","files":[{"path":"a.py","purpose":"p","key_points":["k"]}]}',
               agent="", expected_output="",
           ))
           assert ok, "json_output_guardrail 应通过合法 JSON"
+          cg = code_solution_guardrail()
+          ok2, _ = cg(TaskOutput(description="", raw="```python\n" + "x=1\n"*80 + "```", agent="", expected_output=""))
+          assert ok2, "code_solution_guardrail 应通过含代码块的产出"
           print("[smoke] guardrail 校验 OK")
 
+          # 自定义语法检查工具(纯本地)
+          assert "语法正确" in PythonSyntaxCheckTool()._run("x = 1\n")
+          assert "语法错误" in PythonSyntaxCheckTool()._run("def broken(:\n")
+          print("[smoke] 语法检查工具 OK")
+
           # Flow 结构存在
-          assert hasattr(ReportFlow, "kickoff")
-          print("[smoke] Flow 结构 OK:", ReportFlow.__name__)
+          assert hasattr(CodingFlow, "kickoff")
+          print("[smoke] Flow 结构 OK:", CodingFlow.__name__)
           print("[smoke] 全部通过 ✅")
           PY

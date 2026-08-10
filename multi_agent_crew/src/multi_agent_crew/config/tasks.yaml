@@ -1,29 +1,31 @@
-research_task:
+plan_task:
   description: >
-    围绕 {topic} 做一轮调研。你可以:用文件读取工具打开本地知识文件
-    knowledge/user_preference.txt 了解用户偏好;也会自动检索内置的领域知识。
-    结合当前年份 {current_year},整理出最相关、最有价值的信息。
+    理解以下编码需求,并给出实现方案:
+    {requirement}
+    你可以先用文件读取工具查看 knowledge/coding_preference.txt 了解编码偏好,
+    也会自动检索内置的编码规范。把需求拆解为若干文件/模块,明确每个文件的职责。
     最终只输出一个 JSON 对象,不要任何额外解释或 markdown 围栏。
   expected_output: >
     一个纯 JSON 对象(不要 ``` 围栏、不要多余文字),结构为:
-    {"topic": "<主题>", "findings": [{"point": "<核心要点>",
-    "example": "<落地例子>", "relevance": "<如何呼应用户偏好>"}, ...]}
-    其中 findings 含 3~5 条。
-  agent: researcher
+    {"goal": "<一句话目标>", "files": [{"path": "<相对 generated/ 的文件路径>",
+    "purpose": "<该文件职责>", "key_points": ["<关键实现点>", ...]}, ...]}
+  agent: architect
 
-writing_task:
+code_task:
   description: >
-    基于上一步的调研要点,把每一条扩写成一个完整的小节,组织成一篇
-    结构清晰的中文报告。报告需要有标题、引言和分节论述。
+    严格根据上一步的实现方案,用文件写入工具把每个文件的代码写入 generated/ 目录。
+    代码要完整、可运行、符合编码规范,并附带必要的单元测试。
+    逐个文件写入,不要遗漏方案中的任何文件。
   expected_output: >
-    一篇完整的中文 markdown 报告(不含 '```' 代码块标记),
-    每个要点对应一个小节,论述充分。
-  agent: writer
+    一段简要说明:列出了实际写入 generated/ 的所有文件路径及每个文件的要点。
+  agent: coder
 
 review_task:
   description: >
-    审校上一步产出的报告:检查事实是否准确、结构是否完整、语言是否流畅,
-    修正发现的问题,产出可直接交付的最终稿。
+    审查上一步写入 generated/ 的代码:先用语法检查工具逐个校验 Python 文件语法,
+    再人工审查逻辑正确性、边界处理与可维护性,修正发现的问题,
+    产出最终可用版本。把最终代码(含测试)与评审说明整理后写入 solution.md。
   expected_output: >
-    审校后的最终中文报告(markdown 格式,不含 '```'),并附一句简要的审校说明。
+    一份 markdown(不含多余客套):包含每个文件的最终代码(用 ```python 代码块)、
+    语法检查结论、以及一段简要的评审说明(改了什么、为什么)。
   agent: reviewer

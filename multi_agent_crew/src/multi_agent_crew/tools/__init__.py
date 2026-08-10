@@ -1,3 +1,3 @@
-from .custom_tool import TextStatsTool
+from .custom_tool import PythonSyntaxCheckTool
 
-__all__ = ["TextStatsTool"]
+__all__ = ["PythonSyntaxCheckTool"]

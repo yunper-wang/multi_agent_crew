@@ -15,43 +15,8 @@ from crewai import TaskOutput
 from pydantic import BaseModel
 
 
-def min_length_guardrail(min_chars: int = 300):
-    """生成一个「最小长度」校验器(闭包),可按需调整阈值。"""
-
-    def _check(output: TaskOutput) -> Tuple[bool, Any]:
-        text = output.raw or ""
-        if len(text) < min_chars:
-            return (
-                False,
-                f"内容太短({len(text)} 字),未达到 {min_chars} 字要求。请扩写,确保每个要点论述充分、含具体例子。",
-            )
-        return (True, output)
-
-    return _check
-
-
-def contains_markdown_heading_guardrail(output: TaskOutput) -> Tuple[bool, Any]:
-    """校验产出是带标题的 markdown 报告。"""
-    text = output.raw or ""
-    if "#" not in text:
-        return (False, "产出缺少 markdown 标题(# 开头),请补全标题与分节结构。")
-    return (True, output)
-
-
-def report_guardrail(min_chars: int = 300):
-    """报告专用组合校验:先查结构(markdown 标题),再查篇幅(最小字数)。"""
-
-    def _check(output: TaskOutput) -> Tuple[bool, Any]:
-        ok, res = contains_markdown_heading_guardrail(output)
-        if not ok:
-            return ok, res
-        return min_length_guardrail(min_chars)(output)
-
-    return _check
-
-
 # ---------------------------------------------------------------------------
-# 结构化输出(JSON schema)校验
+# 结构化输出(JSON schema)校验 —— 用于 plan_task
 #
 # 说明:本项目所用本地代理模型强制开启 extended thinking 且不支持
 # tool_choice / json_schema 等 API 级结构化输出,因此 crewai 的 output_pydantic
@@ -88,6 +53,31 @@ def json_output_guardrail(model: type[BaseModel]):
                 "输出需为符合要求的**纯 JSON**(不要 markdown 围栏、不要额外解释文字)。"
                 f"schema 字段: {list(model.model_fields.keys())}。"
                 f"错误: {type(e).__name__}: {str(e)[:150]}",
+            )
+        return (True, output)
+
+    return _check
+
+
+# ---------------------------------------------------------------------------
+# 代码产物校验 —— 用于 review_task
+# ---------------------------------------------------------------------------
+
+
+def code_solution_guardrail(min_chars: int = 200):
+    """代码评审产物校验:必须含 ```python 代码块,且达到一定篇幅。"""
+
+    def _check(output: TaskOutput) -> Tuple[bool, Any]:
+        text = output.raw or ""
+        if "```python" not in text and "```py" not in text:
+            return (
+                False,
+                "产出缺少 ```python 代码块。请把最终代码放在 ```python 围栏中,并附评审说明。",
+            )
+        if len(text) < min_chars:
+            return (
+                False,
+                f"产出太短({len(text)} 字),未达到 {min_chars} 字。请给出完整代码与评审说明。",
             )
         return (True, output)
 
